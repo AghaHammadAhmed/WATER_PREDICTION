@@ -1,0 +1,239 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Water Potability Prediction</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+        }
+        body {
+            font-family: 'Times New Roman';
+            background: url('/static/bg.webp') no-repeat center center fixed;
+            background-size: cover;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 130vh;
+        }
+
+        .container {
+            background: rgba(255, 255, 255, 0.4); 
+            padding: 30px; 
+            margin-top: -60px;
+            border-radius: 15px;
+            max-width: 380px; 
+            width: 100%;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+            text-align: center;
+            transform: scale(0.9);
+        }
+
+        .form-group {
+            margin-bottom: 15px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 3px;
+            font-weight: bolder;
+            color: black;
+        }
+
+        input[type="number"] {
+            width: 100%;
+            padding: 10px;
+            font-size: 16px;
+            border: 1px solid black;
+            border-radius: 5px;
+            box-sizing: border-box;
+        }
+
+        button {
+            background-color: #1abc9c;
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+        }
+
+        button:hover {
+            background-color: #16a085;
+        }
+
+        .popup-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.7);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            visibility: hidden;
+            opacity: 0;
+            transition: visibility 0s, opacity 0.5s ease-in-out;
+            animation: fadeIn 0.5s forwards;
+        }
+
+    
+        .popup-overlay.visible {
+            visibility: visible;
+            opacity: 1;
+        }
+
+        .popup-content {
+            background: linear-gradient(120deg, #1abc9c, #2ecc71);
+            color: #fff;
+            padding: 30px;
+            border-radius: 15px;
+            text-align: center;
+            max-width: 500px;
+            width: 100%;
+            box-shadow: 0 10px 20px rgba(0, 0, 0, 0.5);
+            position: relative;
+            transform: scale(0.8) translateY(-50px); /* Adjusted scaling */
+            opacity: 0;
+            animation: slideUp 0.5s forwards;
+        }
+
+        @keyframes slideUp {
+            0% {
+                transform: scale(0.8) translateY(-50px);
+                opacity: 0;
+            }
+            100% {
+                transform: scale(1) translateY(0);
+                opacity: 1;
+            }
+        }
+
+        .popup-content img {
+            max-width: 150px; /* Enlarged GIF */
+            margin-top: 20px;
+        }
+
+        .popup-list {
+            list-style: none;
+            padding: 0;
+            margin: 20px 0 0;
+            text-align: left;
+        }
+
+        .popup-list li {
+            margin-bottom: 10px;
+            font-size: 18px;
+        }
+
+        .close-btn {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            background: #e74c3c;
+            color: #fff;
+            border: none;
+            border-radius: 5px;
+            padding: 5px 10px;
+            font-size: 16px;
+            cursor: pointer;
+        }
+
+        .close-btn:hover {
+            background: #c0392b;
+        }
+    </style>
+    <script>
+        function validateForm() {
+            let valid = true;
+            const inputs = document.querySelectorAll("input[type='number']");
+            inputs.forEach(input => {
+                const min = parseFloat(input.min);
+                const max = parseFloat(input.max);
+                const value = parseFloat(input.value);
+                if (value < min || value > max || isNaN(value)) {
+                    valid = false;
+                    input.style.border = "2px solid red";
+                } else {
+                    input.style.border = "none";
+                }
+            });
+            return valid;
+        }
+
+        function showPopup(result) {
+            const popupOverlay = document.querySelector('.popup-overlay');
+            const popupContent = document.querySelector('.popup-content');
+
+            let contentHtml = `
+                <button class="close-btn" onclick="hidePopup()">Close</button>
+                <h2>${result.output}</h2>
+                <img src="${result.output === 'Drinkable' ? '/static/drinkable.gif' : '/static/undrinkable.gif'}" alt="${result.output}">
+                <ul class="popup-list">`;
+
+            for (const [key, value] of Object.entries(result)) {
+                if (key !== 'output') {
+                    contentHtml += `<li><strong>${key}:</strong> ${value}</li>`;
+                }
+            }
+            contentHtml += '</ul>';
+
+            popupContent.innerHTML = contentHtml;
+            popupOverlay.classList.add('visible');
+        }
+
+        function hidePopup() {
+            const popupOverlay = document.querySelector('.popup-overlay');
+            popupOverlay.classList.remove('visible');
+        }
+
+        document.addEventListener("DOMContentLoaded", () => {
+            const form = document.querySelector('form');
+            form.addEventListener('submit', function(event) {
+                event.preventDefault();
+                if (validateForm()) {
+                    const formData = new FormData(form);
+                    fetch('{{ url_for("predict") }}', {
+                        method: 'POST',
+                        body: formData
+                    })
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.error) {
+                            alert(data.error);
+                        } else {
+                            showPopup(data);
+                        }
+                    });
+                }
+            });
+
+            const popupOverlay = document.querySelector('.popup-overlay');
+            popupOverlay.addEventListener('click', hidePopup);
+        });
+    </script>
+</head>
+<body>
+    <div class="container">
+        <h1>Water Potability Prediction</h1>
+        <form>
+            {% for feature, range in feature_ranges.items() %}
+            <div class="form-group">
+                <label for="{{ feature }}">{{ feature.capitalize() }} (Range: {{ range[0] }} - {{ range[1] }})</label>
+                <input type="number" i  d="{{ feature }}" name="{{ feature }}" min="{{ range[0] }}" max="{{ range[1] }}" step="0.01" required>
+            </div>
+            {% endfor %}
+            <button type="submit">Predict Potability</button>
+        </form>
+    </div>
+
+    <div class="popup-overlay">
+        <div class="popup-content">
+        </div>
+    </div>
+</body>
+</html>
